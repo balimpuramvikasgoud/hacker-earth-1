@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Creative Director</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 40px auto; }
+        div { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; }
+        input[type="text"] { width: 100%; padding: 8px; }
+        #result { margin-top: 20px; }
+        #result img { max-width: 100%; border: 1px solid #ccc; }
+        #loading { display: none; }
+    </style>
+</head>
+<body>
+    <h1>AI Creative Director</h1>
+    <form id="ad-form">
+        <div>
+            <label for="product_image">Product Image:</label>
+            <input type="file" id="product_image" required>
+        </div>
+        <div>
+            <label for="logo_image">Logo Image:</label>
+            <input type="file" id="logo_image" required>
+        </div>
+        <div>
+            <label for="ad_text">Ad Text:</label>
+            <input type="text" id="ad_text" value="50% OFF" required>
+        </div>
+        <div>
+            <label for="rules_prompt">Rules (AI Prompt):</label>
+            <input type="text" id="rules_prompt" value="A festive red and green background" required>
+        </div>
+        <button type="submit">Generate Ad</button>
+    </form>
+    
+    <div id="loading">Generating... this may take a moment.</div>
+    <div id="result"></div>
+
+    <script>
+        const form = document.getElementById('ad-form');
+        const resultDiv = document.getElementById('result');
+        const loadingDiv = document.getElementById('loading');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            loadingDiv.style.display = 'block';
+            resultDiv.innerHTML = '';
+            
+            const formData = new FormData();
+            formData.append('product_image', document.getElementById('product_image').files[0]);
+            formData.append('logo_image', document.getElementById('logo_image').files[0]);
+            formData.append('ad_text', document.getElementById('ad_text').value);
+            formData.append('rules_prompt', document.getElementById('rules_prompt').value);
+
+            try {
+                const response = await fetch('/api/generate_ad', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to generate ad. Server error.');
+                }
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `<h3>Here's your ad:</h3><img src="${data.image_url}" alt="Generated Ad">`;
+                } else {
+                    throw new Error('Failed to generate ad.');
+                }
+
+            } catch (error) {
+                resultDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            } finally {
+                loadingDiv.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
