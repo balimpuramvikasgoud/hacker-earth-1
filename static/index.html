@@ -5,33 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Creative Director</title>
     <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 40px auto; }
-        div { margin-bottom: 15px; }
-        label { display: block; font-weight: bold; margin-bottom: 5px; }
-        input[type="text"] { width: 100%; padding: 8px; }
-        #result { margin-top: 20px; }
-        #result img { max-width: 100%; border: 1px solid #ccc; }
-        #loading { display: none; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 600px; margin: 40px auto; background: #f4f7f6; }
+        h1 { color: #333; }
+        form { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 25px; }
+        div { margin-bottom: 20px; }
+        label { display: block; font-weight: 600; margin-bottom: 8px; color: #555; }
+        input[type="text"], input[type="file"] { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        button { background: #007aff; color: white; padding: 12px 20px; border: none; border-radius: 4px; font-weight: 600; font-size: 16px; cursor: pointer; width: 100%; }
+        button:hover { background: #0056b3; }
+        #result { margin-top: 30px; text-align: center; }
+        #result img { max-width: 100%; border: 1px solid #ccc; border-radius: 8px; }
+        #loading { display: none; text-align: center; padding: 20px; font-weight: 600; color: #555; }
     </style>
 </head>
 <body>
     <h1>AI Creative Director</h1>
     <form id="ad-form">
         <div>
-            <label for="product_image">Product Image:</label>
-            <input type="file" id="product_image" required>
+            <label for="product_image">1. Upload Product Image:</label>
+            <input type="file" id="product_image" name="product_image" required>
         </div>
         <div>
-            <label for="logo_image">Logo Image:</label>
-            <input type="file" id="logo_image" required>
+            <label for="logo_image">2. Upload Logo Image:</label>
+            <input type="file" id="logo_image" name="logo_image" required>
         </div>
         <div>
-            <label for="ad_text">Ad Text:</label>
-            <input type="text" id="ad_text" value="50% OFF" required>
+            <label for="ad_text">3. Enter Ad Text:</label>
+            <input type="text" id="ad_text" name="ad_text" value="50% OFF" required>
         </div>
         <div>
-            <label for="rules_prompt">Rules (AI Prompt):</label>
-            <input type="text" id="rules_prompt" value="A festive red and green background" required>
+            <label for="rules_prompt">4. Enter AI Rules/Prompt:</label>
+            <input type="text" id="rules_prompt" name="rules_prompt" value="A festive red and green background" required>
         </div>
         <button type="submit">Generate Ad</button>
     </form>
@@ -50,11 +54,7 @@
             loadingDiv.style.display = 'block';
             resultDiv.innerHTML = '';
             
-            const formData = new FormData();
-            formData.append('product_image', document.getElementById('product_image').files[0]);
-            formData.append('logo_image', document.getElementById('logo_image').files[0]);
-            formData.append('ad_text', document.getElementById('ad_text').value);
-            formData.append('rules_prompt', document.getElementById('rules_prompt').value);
+            const formData = new FormData(form);
 
             try {
                 const response = await fetch('/api/generate_ad', {
@@ -63,13 +63,15 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to generate ad. Server error.');
+                    // Try to get the error detail from the server
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Failed to generate ad. Server error.');
                 }
 
                 const data = await response.json();
                 
                 if (data.success) {
-                    resultDiv.innerHTML = `<h3>Here's your ad:</h3><img src="${data.image_url}" alt="Generated Ad">`;
+                    resultDiv.innerHTML = `<h3>Here's your ad:</h3><a href="${data.image_url}" target="_blank"><img src="${data.image_url}" alt="Generated Ad"></a>`;
                 } else {
                     throw new Error('Failed to generate ad.');
                 }
@@ -80,6 +82,6 @@
                 loadingDiv.style.display = 'none';
             }
         });
-    </script>
+    </sCRIPT>
 </body>
 </html>
