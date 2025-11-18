@@ -4,3 +4,4 @@ pillow
 rembg
 onnxruntime
 python-multipart
+replicate
