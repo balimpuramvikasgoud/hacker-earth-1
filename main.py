@@ -1,7 +1,7 @@
 import uvicorn
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from PIL import Image, ImageDraw, ImageFont
 from rembg import remove
 import io
@@ -15,40 +15,44 @@ STATIC_DIR = "static"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(STATIC_DIR, exist_ok=True)
 
-# Mount a static directory to serve the generated images
+# Mount static directories
 app.mount("/outputs", StaticFiles(directory=OUTPUT_DIR), name="outputs")
-app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # --- Helper Functions ---
 
 def generate_ai_background(text_prompt: str, width: int, height: int) -> Image:
     """
     *** THIS IS THE AI GENERATION PART ***
-    This is where you would call Stable Diffusion (e.g., Replicate, Stability.ai).
-    For the hackathon, we'll start with a simple gradient as a placeholder.
+    This is a placeholder. Replace this with a real call to Stable Diffusion
+    or another AI image API.
     """
     print(f"Generating AI background with prompt: {text_prompt}")
     
     # --- HACKATHON PLACEHOLDER ---
-    # Replace this with your actual GenAI API call
+    # A simple gradient to show it's "AI-generated"
     img = Image.new('RGB', (width, height), color = 'red')
     d = ImageDraw.Draw(img)
-    # A simple gradient to show it's "AI-generated"
     for i in range(height):
         r = int(255 * (i / height))
         g = 0
         b = int(100 * (1 - (i / height)))
         d.line([(0, i), (width, i)], fill=(r, g, b))
-    # --- END PLACEHOLDER ---
-    
-    # A real call would look like this (using a library like 'replicate'):
-    # output = replicate.run(
-    #     "stability-ai/sdxl:...",
-    #     input={"prompt": text_prompt, "width": width, "height": height}
-    # )
-    # img = Image.open(io.BytesIO(requests.get(output[0]).content))
     
     return img
+
+# --- Main Page Endpoint ---
+
+@app.get("/", response_class=HTMLResponse)
+async def get_homepage():
+    """
+    Serves the main index.html file from the static folder.
+    """
+    try:
+        with open(os.path.join(STATIC_DIR, "index.html")) as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Error: index.html not found</h1>", status_code=404)
 
 # --- API Endpoint ---
 
@@ -57,15 +61,14 @@ async def generate_ad(
     product_image: UploadFile = File(...),
     logo_image: UploadFile = File(...),
     ad_text: str = Form(...),
-    rules_prompt: str = Form(...)  # e.g., "A festive red and green background"
+    rules_prompt: str = Form(...)
 ):
     try:
         # 1. Read and process images
         product_bytes = await product_image.read()
         logo_bytes = await logo_image.read()
         
-        # 2. AI Background Removal (Feature 1)
-        # Use 'rembg' to remove the background from the product
+        # 2. AI Background Removal
         product_no_bg_bytes = remove(product_bytes)
         product_clean = Image.open(io.BytesIO(product_no_bg_bytes)).convert("RGBA")
         
@@ -74,37 +77,33 @@ async def generate_ad(
         # Define standard ad size
         AD_WIDTH, AD_HEIGHT = 1080, 1080
         
-        # 3. AI Background Generation (Feature 1)
-        # The "Manager" AI's prompt is passed to the "Worker" AI
+        # 3. AI Background Generation
         ai_background = generate_ai_background(rules_prompt, AD_WIDTH, AD_HEIGHT)
         
         # 4. Hybrid Composition (The "Professional Trick")
-        # We use Pillow to assemble the ad. This is our "Hybrid Engine".
         final_ad = ai_background.copy().convert("RGBA")
         
         # --- Paste Product ---
-        product_clean.thumbnail((AD_WIDTH * 0.6, AD_HEIGHT * 0.6)) # Resize
+        product_clean.thumbnail((AD_WIDTH * 0.6, AD_HEIGHT * 0.6))
         product_pos = (
             (AD_WIDTH - product_clean.width) // 2, 
-            (AD_HEIGHT - product_clean.height) // 2 + 50 # Center-ish
+            (AD_HEIGHT - product_clean.height) // 2 + 50
         )
-        final_ad.paste(product_clean, product_pos, product_clean) # Paste with transparency
+        final_ad.paste(product_clean, product_pos, product_clean)
         
         # --- Paste Logo ---
-        logo.thumbnail((AD_WIDTH * 0.2, AD_HEIGHT * 0.2)) # Resize
-        logo_pos = (AD_WIDTH - logo.width - 50, AD_HEIGHT - logo.height - 50) # Bottom-right
-        final_ad.paste(logo, logo_pos, logo) # Paste with transparency
+        logo.thumbnail((AD_WIDTH * 0.2, AD_HEIGHT * 0.2))
+        logo_pos = (AD_WIDTH - logo.width - 50, AD_HEIGHT - logo.height - 50)
+        final_ad.paste(logo, logo_pos, logo)
         
         # --- Add Text ---
         draw = ImageDraw.Draw(final_ad)
-        # You'd load a custom font (from Brand Kit) here. We'll use default.
-        # font = ImageFont.truetype("my_font.ttf", 90)
-        try:
-            # Try to load a good default font
-            font = ImageFont.truetype("Arial.ttf", 90)
-        except IOError:
-            font = ImageFont.load_default()
-            
+        
+        # *** FONT FIX ***
+        # This is the safe, built-in font. It will always work.
+        font_size = 90
+        font = ImageFont.load_default(size=font_size)
+        
         text_bbox = draw.textbbox((0, 0), ad_text, font=font)
         text_width = text_bbox[2] - text_bbox[0]
         text_pos = ((AD_WIDTH - text_width) // 2, 100) # Top-center
@@ -115,13 +114,13 @@ async def generate_ad(
         output_path = os.path.join(OUTPUT_DIR, filename)
         final_ad.save(output_path, "PNG")
         
-        # Return the URL where the frontend can find the image
         return {"success": True, "image_url": f"/outputs/{filename}"}
 
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error during ad generation: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
-    print("Visit http://127.0.0.1:8000 to see your app.")
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    # This is the "development" command.
+    print("Starting server... Go to http://127.0.0.1:8000")
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
